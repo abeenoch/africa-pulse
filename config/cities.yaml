@@ -1,0 +1,34 @@
+# Adding a city must not require warehouse redesign, just an entry here.
+cities:
+  - city_id: ng_lagos
+    name: Lagos
+    country: Nigeria
+    country_code: NG
+    currency: NGN
+    lat: 6.5244
+    lon: 3.3792
+    timezone: Africa/Lagos
+  - city_id: ng_abuja
+    name: Abuja
+    country: Nigeria
+    country_code: NG
+    currency: NGN
+    lat: 9.0765
+    lon: 7.3986
+    timezone: Africa/Lagos
+  - city_id: ng_port_harcourt
+    name: Port Harcourt
+    country: Nigeria
+    country_code: NG
+    currency: NGN
+    lat: 4.8156
+    lon: 7.0498
+    timezone: Africa/Lagos
+  - city_id: gh_accra
+    name: Accra
+    country: Ghana
+    country_code: GH
+    currency: GHS
+    lat: 5.6037
+    lon: -0.1870
+    timezone: Africa/Accra

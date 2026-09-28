@@ -1,0 +1,123 @@
+name: africa-pulse
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: africa_pulse_airflow_db
+    restart: unless-stopped
+    profiles: ["airflow"]
+    environment:
+      POSTGRES_USER: ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_USERNAME:-airflow}
+      POSTGRES_PASSWORD: ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_PASSWORD:-airflow}
+      POSTGRES_DB: ${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_DB:-airflow}
+    volumes:
+      - airflow_postgres_data:/var/lib/postgresql/data
+
+  airflow-init:
+    build: ./airflow
+    image: africa-pulse/airflow:2.10.4
+    container_name: africa_pulse_airflow_init
+    profiles: ["airflow"]
+    depends_on:
+      - postgres
+    env_file:
+      - path: .env.airflow
+        required: false
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_USERNAME:-airflow}:${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_PASSWORD:-airflow}@postgres:5432/${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_DB:-airflow}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:-change-me-to-a-real-fernet-key}
+      TZ: UTC
+    volumes:
+      - ./:/opt/airflow/africa-pulse:rw
+      - ./airflow/dags:/opt/airflow/dags:ro
+    command: version
+
+  airflow-scheduler:
+    build: ./airflow
+    image: africa-pulse/airflow:2.10.4
+    container_name: africa_pulse_airflow_scheduler
+    restart: unless-stopped
+    profiles: ["airflow"]
+    depends_on:
+      - postgres
+    env_file:
+      - path: .env.airflow
+        required: false
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_USERNAME:-airflow}:${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_PASSWORD:-airflow}@postgres:5432/${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_DB:-airflow}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:-change-me-to-a-real-fernet-key}
+      TZ: UTC
+    volumes:
+      - ./:/opt/airflow/africa-pulse:rw
+      - ./airflow/dags:/opt/airflow/dags:ro
+    command: scheduler
+
+  airflow-webserver:
+    build: ./airflow
+    image: africa-pulse/airflow:2.10.4
+    container_name: africa_pulse_airflow_webserver
+    restart: unless-stopped
+    profiles: ["airflow"]
+    depends_on:
+      - postgres
+      - airflow-scheduler
+    env_file:
+      - path: .env.airflow
+        required: false
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_USERNAME:-airflow}:${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_PASSWORD:-airflow}@postgres:5432/${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_DB:-airflow}
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY:-change-me-to-a-real-secret-key}
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "true"
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY:-change-me-to-a-real-fernet-key}
+      TZ: UTC
+    volumes:
+      - ./:/opt/airflow/africa-pulse:rw
+      - ./airflow/dags:/opt/airflow/dags:ro
+    ports:
+      - "8080:8080"
+    command: webserver
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: africa_pulse_clickhouse
+    profiles: ["local-stack"]
+    ports:
+      - "8123:8123"   # HTTP interface (used by Python client + Metabase)
+      - "9000:9000"   # native TCP
+    environment:
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-urbanpulse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-change_me}
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-urbanpulse}
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  metabase:
+    image: metabase/metabase:v0.50
+    container_name: africa_pulse_metabase
+    profiles: ["local-stack"]
+    ports:
+      - "3000:3000"
+    depends_on:
+      - clickhouse
+    volumes:
+      - metabase_data:/metabase-data
+    environment:
+      MB_PLUGINS_DIR: /plugins
+    # Note: mount the ClickHouse Metabase driver jar into /plugins
+    # https://github.com/ClickHouse/metabase-clickhouse-driver/releases
+
+volumes:
+  airflow_postgres_data:
+  clickhouse_data:
+  metabase_data:
