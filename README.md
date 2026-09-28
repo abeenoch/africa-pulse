@@ -117,8 +117,4 @@ the repository and credentials can reach it:
 | `scripts/` | `run_pipeline.py` orchestrator + ops probes |
 | `docs/` | Decision log, source register, progress log, runbook, architecture, warehouse model, metric catalogue |
 
-## Rules we follow
 
-- No fabricated observations; missing data is represented as NULL + logged.
-- No secrets in code (`.env` only, git-ignored).
-- Source outages are recorded in `urbanpulse.ingestion_log`, never silently patched.
